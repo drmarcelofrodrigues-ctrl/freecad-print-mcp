@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "freecad-print": {
+      "command": "python",
+      "args": ["-m", "freecad_print_mcp.server"],
+      "env": {
+        "FREECAD_CMD": "C:\\Program Files\\FreeCAD 1.0\\bin\\FreeCADCmd.exe",
+        "FCMCP_OUTPUT_DIR": "C:\\Users\\SEU_USUARIO\\Documents\\Impressão 3D\\freecad-mcp"
+      }
+    }
+  }
+}

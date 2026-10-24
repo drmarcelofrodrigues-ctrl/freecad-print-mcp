@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+
+# Saídas de modelagem (STL/3MF/STEP gerados ficam fora do git)
+out/
+*.stl
+*.3mf
+*.step
+*.stp
+*.FCStd
+*.FCBak
+!examples/**/*.3mf
+
+# IDE / SO
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
