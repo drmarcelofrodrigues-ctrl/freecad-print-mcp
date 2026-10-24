@@ -5,7 +5,8 @@
 # O que faz: baixa o repositório em Documentos\freecad-print-mcp, instala o pacote no Python,
 # localiza o FreeCADCmd.exe e adiciona o servidor "freecad-print" ao claude_desktop_config.json.
 
-$ErrorActionPreference = "Stop"
+# "Continue": programas nativos (python, pip, git) escrevem avisos em stderr, e com "Stop" isso viraria erro fatal.
+$ErrorActionPreference = "Continue"
 $Repo = "drmarcelofrodrigues-ctrl/freecad-print-mcp"
 $Docs = [Environment]::GetFolderPath("MyDocuments")
 $Dest = Join-Path $Docs "freecad-print-mcp"
@@ -21,23 +22,33 @@ function Refresh-Path {
 try {
     # ---------- Python ----------
     Say "Procurando Python 3.10+"
+    # Ignora o Python embutido do FreeCAD e o atalho da Microsoft Store (WindowsApps)
+    function Probe-Python($exe, [string[]]$pre) {
+        try {
+            $out = & $exe @pre -c "import sys;print(sys.executable+'|%d.%d'%sys.version_info[:2])" 2>&1 | Where-Object { $_ -is [string] } | Select-Object -Last 1
+            if (-not $out -or $out -notmatch '\|') { return $null }
+            $exePath, $ver = $out.Trim().Split('|')
+            if ($exePath -match 'FreeCAD|WindowsApps') { return $null }
+            if ([version]$ver -lt [version]"3.10") { return $null }
+            return $exePath
+        } catch { return $null }
+    }
     $py = $null
-    foreach ($cand in @("python", "py")) {
-        $cmd = Get-Command $cand -ErrorAction SilentlyContinue
-        if ($cmd) {
-            $pyArgs = if ($cand -eq "py") { @("-3", "-c") } else { @("-c") }
-            $v = & $cmd.Source @pyArgs "import sys;print('%d.%d'%sys.version_info[:2])" 2>$null
-            if ($v -and [version]$v -ge [version]"3.10") {
-                $py = if ($cand -eq "py") { (& $cmd.Source -3 -c "import sys;print(sys.executable)") } else { $cmd.Source }
-                break
-            }
+    $pyl = Get-Command py -ErrorAction SilentlyContinue
+    if ($pyl) { $py = Probe-Python $pyl.Source @("-3") }
+    if (-not $py) {
+        foreach ($c in (Get-Command python -All -ErrorAction SilentlyContinue)) {
+            $py = Probe-Python $c.Source @()
+            if ($py) { break }
         }
     }
     if (-not $py) {
-        Say "Python não encontrado — instalando via winget (Python 3.12)"
+        Say "Python do sistema não encontrado — instalando via winget (Python 3.12)"
         winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements --silent
         Refresh-Path
-        $py = (Get-Command python).Source
+        $pyl = Get-Command py -ErrorAction SilentlyContinue
+        if ($pyl) { $py = Probe-Python $pyl.Source @("-3") }
+        if (-not $py) { throw "Python não ficou disponível após a instalação; abra um novo PowerShell e rode o instalador de novo." }
     }
     Say "Python: $py"
 
@@ -61,8 +72,9 @@ try {
 
     # ---------- pip ----------
     Say "Instalando o pacote (pip install -e .)"
-    & $py -m pip install --upgrade pip --quiet
-    & $py -m pip install -e $Dest --quiet
+    & $py -m pip install --upgrade pip --quiet 2>&1 | Out-Host
+    & $py -m pip install -e $Dest --quiet 2>&1 | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "pip install falhou (código $LASTEXITCODE)" }
 
     # ---------- FreeCAD ----------
     Say "Procurando FreeCADCmd.exe"
