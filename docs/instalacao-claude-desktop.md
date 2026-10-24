@@ -19,7 +19,7 @@ Teste no PowerShell:
 Use o Python do sistema (3.10+), não o embutido no FreeCAD.
 
 ```powershell
-git clone https://github.com/<seu-usuario>/freecad-print-mcp
+git clone https://github.com/drmarcelofrodrigues-ctrl/freecad-print-mcp
 cd freecad-print-mcp
 pip install -e .
 python -c "from freecad_print_mcp import runner; print(runner.freecad_version())"
