@@ -9,8 +9,10 @@
 $ErrorActionPreference = "Continue"
 $Repo = "drmarcelofrodrigues-ctrl/freecad-print-mcp"
 $Docs = [Environment]::GetFolderPath("MyDocuments")
-$Dest = Join-Path $Docs "freecad-print-mcp"
+# Código fica fora do OneDrive (repositório git sincronizado dá problema); saídas vão para Documentos
+$Dest = Join-Path $env:LOCALAPPDATA "freecad-print-mcp"
 $OutDir = Join-Path $Docs "Impressão 3D\freecad-mcp"
+New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null
 $Log = Join-Path $env:TEMP "freecad-print-mcp-install.log"
 Start-Transcript -Path $Log -Force | Out-Null
 
@@ -58,7 +60,9 @@ try {
         git -C $Dest pull --ff-only
     } elseif (Get-Command git -ErrorAction SilentlyContinue) {
         Say "Clonando com git para $Dest"
-        git clone "https://github.com/$Repo" $Dest
+        if (Test-Path $Dest) { Remove-Item $Dest -Recurse -Force }
+        git clone "https://github.com/$Repo" $Dest 2>&1 | Out-Host
+        if (-not (Test-Path (Join-Path $Dest "pyproject.toml"))) { throw "git clone falhou" }
     } else {
         Say "git não encontrado — baixando o zip"
         $zip = Join-Path $env:TEMP "freecad-print-mcp.zip"

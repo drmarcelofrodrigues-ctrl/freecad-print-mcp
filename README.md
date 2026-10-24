@@ -23,7 +23,7 @@ Diferença para o [freecad-mcp](https://github.com/neka-nat/freecad-mcp) (neka-n
 
 Pré-requisitos: FreeCAD 1.0+ instalado e Python 3.10+ (o Python do sistema, não o do FreeCAD).
 
-**Windows, em um comando** (Win+R ou PowerShell) — clona, instala, acha o FreeCAD e configura o Claude Desktop:
+**Windows, em um comando** (Win+R ou PowerShell) — clona em %LOCALAPPDATA%\freecad-print-mcp, instala, acha o FreeCAD e configura o Claude Desktop:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/drmarcelofrodrigues-ctrl/freecad-print-mcp/main/install.ps1 | iex"
