@@ -25,8 +25,8 @@ try {
     foreach ($cand in @("python", "py")) {
         $cmd = Get-Command $cand -ErrorAction SilentlyContinue
         if ($cmd) {
-            $args = if ($cand -eq "py") { @("-3", "-c") } else { @("-c") }
-            $v = & $cmd.Source @args "import sys;print('%d.%d'%sys.version_info[:2])" 2>$null
+            $pyArgs = if ($cand -eq "py") { @("-3", "-c") } else { @("-c") }
+            $v = & $cmd.Source @pyArgs "import sys;print('%d.%d'%sys.version_info[:2])" 2>$null
             if ($v -and [version]$v -ge [version]"3.10") {
                 $py = if ($cand -eq "py") { (& $cmd.Source -3 -c "import sys;print(sys.executable)") } else { $cmd.Source }
                 break
@@ -75,23 +75,32 @@ try {
     # ---------- Claude Desktop ----------
     $cfgPath = Join-Path $env:APPDATA "Claude\claude_desktop_config.json"
     Say "Configurando $cfgPath"
-    $cfg = @{}
+    # Compatível com Windows PowerShell 5.1 (sem -AsHashtable); grava UTF-8 sem BOM
+    $cfg = [pscustomobject]@{}
     if (Test-Path $cfgPath) {
         Copy-Item $cfgPath "$cfgPath.bak" -Force
-        $raw = Get-Content $cfgPath -Raw
-        if ($raw.Trim()) { $cfg = $raw | ConvertFrom-Json -AsHashtable }
+        $raw = (Get-Content $cfgPath -Raw) -replace "^﻿", ""
+        if ($raw.Trim()) { $cfg = $raw | ConvertFrom-Json }
     } else {
         New-Item -ItemType Directory -Force (Split-Path $cfgPath) | Out-Null
     }
-    if (-not $cfg.ContainsKey("mcpServers")) { $cfg["mcpServers"] = @{} }
-    $envBlock = @{ "FCMCP_OUTPUT_DIR" = $OutDir }
-    if ($fc) { $envBlock["FREECAD_CMD"] = $fc.FullName }
-    $cfg["mcpServers"]["freecad-print"] = @{
-        "command" = $py
-        "args"    = @("-m", "freecad_print_mcp.server")
-        "env"     = $envBlock
+    if (-not $cfg.PSObject.Properties["mcpServers"]) {
+        $cfg | Add-Member -NotePropertyName "mcpServers" -NotePropertyValue ([pscustomobject]@{})
     }
-    $cfg | ConvertTo-Json -Depth 10 | Set-Content $cfgPath -Encoding UTF8
+    $envBlock = [ordered]@{ "FCMCP_OUTPUT_DIR" = $OutDir }
+    if ($fc) { $envBlock["FREECAD_CMD"] = $fc.FullName }
+    $server = [pscustomobject]@{
+        command = $py
+        args    = @("-m", "freecad_print_mcp.server")
+        env     = [pscustomobject]$envBlock
+    }
+    if ($cfg.mcpServers.PSObject.Properties["freecad-print"]) {
+        $cfg.mcpServers."freecad-print" = $server
+    } else {
+        $cfg.mcpServers | Add-Member -NotePropertyName "freecad-print" -NotePropertyValue $server
+    }
+    $json = $cfg | ConvertTo-Json -Depth 10
+    [IO.File]::WriteAllText($cfgPath, $json, (New-Object Text.UTF8Encoding $false))
     New-Item -ItemType Directory -Force $OutDir | Out-Null
 
     # ---------- Teste ----------
